@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'accounts',
     'watermonitoringapi',
     'rest_framework_simplejwt',
-    'drf_yasg'
+    'drf_yasg',
+    'corsheaders',
 ]
 
 SWAGGER_SETTINGS = {
@@ -72,7 +73,14 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 ROOT_URLCONF = 'water_monitoring.urls'
 
