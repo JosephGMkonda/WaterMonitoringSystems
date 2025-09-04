@@ -1,14 +1,30 @@
 from django.core.management.base import BaseCommand
 import requests
-from watermonitoringapi.models import WaterPoint
 import time
+from watermonitoringapi.models import WaterPoint
+from watermonitoringapi.utils import reverse_geocode
+
 
 class Command(BaseCommand):
     help = "Import water points in Malawi from OpenStreetMap (Overpass API) and reverse geocode"
 
-    def handle(self, *args, **kwargs):
-        self.stdout.write("Fetching water points...")
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--debug",
+            action="store_true",
+            help="Print raw geocoding results for debugging"
+        )
 
+    def handle(self, *args, **kwargs):
+        debug = kwargs.get("debug", False)
+        self.stdout.write("🚿 Importing water points...")
+
+        # Step 1: Clear old water points
+        self.stdout.write("🧹 Clearing old water points...")
+        deleted, _ = WaterPoint.objects.all().delete()
+        self.stdout.write(f"✅ Deleted {deleted} old records")
+
+        # Step 2: Fetch fresh data from Overpass API
         url = """
         https://overpass-api.de/api/interpreter?data=[out:json][timeout:180];
         area["name"="Malawi"]->.a;
@@ -36,6 +52,7 @@ class Command(BaseCommand):
             self.stderr.write("❌ Response is not valid JSON")
             return
 
+        # Step 3: Save new data
         imported_count = 0
         for element in data.get("elements", []):
             lat = element.get("lat")
@@ -45,43 +62,41 @@ class Command(BaseCommand):
             if not lat or not lon:
                 continue
 
-            if WaterPoint.objects.filter(latitude=lat, longitude=lon).exists():
-                continue
-
             name = tags.get("name") or tags.get("description") or f"WaterPoint-{element.get('id')}"
 
-            # Reverse geocode using Nominatim
-            district = "Unknown"
-            village = "Unknown"
-            try:
-                r = requests.get(
-                    "https://nominatim.openstreetmap.org/reverse",
-                    params={
-                        "format": "json",
-                        "lat": lat,
-                        "lon": lon,
-                        "zoom": 16,
-                        "addressdetails": 1
-                    },
-                    headers={"User-Agent": "WaterMonitoringApp/1.0"}
-                )
-                r_json = r.json()
-                address = r_json.get("address", {})
-                village = address.get("village") or address.get("town") or address.get("suburb") or "Unknown"
-                district = address.get("county") or address.get("state_district") or "Unknown"
+            # Use util for reverse geocoding
+            geo = reverse_geocode(lat, lon)
 
-                # Avoid hitting rate limits
-                time.sleep(1)
-            except Exception as e:
-                self.stderr.write(f"⚠️ Reverse geocoding failed for {lat},{lon}: {e}")
+            if debug:
+                self.stdout.write(f"\n📍 DEBUG for {name} ({lat},{lon}):")
+                # Instead of just printing, call nominatim again to get full response
+                try:
+                    r = requests.get(
+                        "https://nominatim.openstreetmap.org/reverse",
+                        params={
+                            "lat": lat,
+                            "lon": lon,
+                            "format": "json",
+                            "addressdetails": 1
+                        },
+                        headers={"User-Agent": "WaterMonitoringApp/1.0"},
+                        timeout=10,
+                    )
+                    self.stdout.write(str(r.json().get("address", {})))
+                except Exception as e:
+                    self.stderr.write(f"⚠️ Debug fetch failed: {e}")
+
+            # Avoid hitting API rate limits
+            time.sleep(1)
 
             WaterPoint.objects.create(
                 name=name,
                 latitude=lat,
                 longitude=lon,
-                village=village,
-                district=district,
-                status='working'  # Default status
+                village=geo["village"],
+                district=geo["district"],
+                status="working",
+                raw_address=geo["raw_address"]
             )
 
             imported_count += 1

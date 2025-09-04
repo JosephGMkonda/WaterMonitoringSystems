@@ -4,6 +4,8 @@ import './index.css'
 import App from './App.jsx'
 import { Provider } from "react-redux";
 import {store} from './store'
+import "leaflet/dist/leaflet.css";
+
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

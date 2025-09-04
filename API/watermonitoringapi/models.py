@@ -18,6 +18,7 @@ class WaterPoint(models.Model):
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='working')
     created_at = models.DateTimeField(auto_now_add=True)
+    raw_address = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"{self.name}- {self.district}- {self.village}"
