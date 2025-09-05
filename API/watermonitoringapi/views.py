@@ -2,6 +2,10 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from rest_framework import viewsets, permissions
 
+from django.db.models import Count
+from django.utils.timezone import now, timedelta
+
+
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
@@ -125,3 +129,47 @@ def repair_log_detail(request, pk):
     elif request.method == 'DELETE':
         repair_log.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["GET"])
+def dashboard_summary(request):
+    total = WaterPoint.objects.count()
+    working = WaterPoint.objects.filter(status="working").count()
+    not_working = total - working
+
+    
+    by_district = (
+        WaterPoint.objects.values("raw_address__state")
+        .annotate(count=Count("id"))
+        .order_by("-count")
+    )
+
+
+    by_region = (
+        WaterPoint.objects.values("district")
+        .annotate(count=Count("id"))
+        .order_by("-count")
+    )
+
+    
+    recent = WaterPoint.objects.order_by("-created_at")[:5]
+    recent_data = [
+        {
+            "id": wp.id,
+            "name": wp.name,
+            "district": wp.district,
+            "village": wp.village,
+            "status": wp.status,
+            "created_at": wp.created_at,
+        }
+        for wp in recent
+    ]
+
+    return Response({
+        "total_waterpoints": total,
+        "working_waterpoints": working,
+        "not_working_waterpoints": not_working,
+        "by_district": {item["raw_address__state"]: item["count"] for item in by_district if item["raw_address__state"]},
+        "by_region": {item["district"]: item["count"] for item in by_region if item["district"]},
+        "recently_added": recent_data,
+    })

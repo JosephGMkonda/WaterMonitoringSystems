@@ -4,15 +4,15 @@ import { FiSettings } from "react-icons/fi";
 import usericon from "../assets/usericon.webp";
 
 const Sidebar = () => {
-  const username = "Joseph Mkonda"; // You can get this dynamically from context or API
+  const username = "Joseph Mkonda"; 
   const version = "v1.0.0";
 
   return (
     <div className="bg-gradient-to-b from-blue-600 to-blue-400 h-full w-[18%] fixed top-0 left-0 z-50 flex flex-col justify-between">
       
-      {/* Top Section */}
+      
       <div>
-        {/* Profile Section */}
+        
         <div className="flex flex-col items-center py-6 border-b border-blue-300">
           <img
             src={usericon}
@@ -23,7 +23,7 @@ const Sidebar = () => {
          
         </div>
 
-        {/* Navigation Links */}
+        
         <nav className="mt-6">
           <Link
             to="/"
@@ -51,7 +51,7 @@ const Sidebar = () => {
         </nav>
       </div>
 
-      {/* Bottom Version */}
+      
       <div className="text-center py-4 border-t border-blue-300 text-blue-100 text-sm">
         {version}
       </div>
